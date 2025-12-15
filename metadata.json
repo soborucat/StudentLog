@@ -1,0 +1,5 @@
+{
+  "name": "간편 출결 알리미",
+  "description": "구글 설문지(Google Forms)와 연동하여 학생들의 출결(결석, 지각, 조퇴) 정보를 빠르게 입력하고 전송하는 웹 애플리케이션입니다.",
+  "requestFramePermissions": []
+}
