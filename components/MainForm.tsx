@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AttendanceReason, AttendanceType, FormConfig, SubmissionData } from '../types';
-import { User, Send, CheckCircle, RotateCcw, Settings, Loader2 } from 'lucide-react';
+import { User, Send, CheckCircle, RotateCcw, Settings, Loader2, MessageSquare } from 'lucide-react';
 import { submitToGoogleForm } from '../services/formService';
 
 interface MainFormProps {
@@ -12,6 +12,7 @@ const MainForm: React.FC<MainFormProps> = ({ config, onOpenSettings }) => {
   const [studentId, setStudentId] = useState('');
   const [selectedType, setSelectedType] = useState<AttendanceType | null>(null);
   const [selectedReason, setSelectedReason] = useState<AttendanceReason | null>(null);
+  const [guardianChecked, setGuardianChecked] = useState(false);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -22,8 +23,20 @@ const MainForm: React.FC<MainFormProps> = ({ config, onOpenSettings }) => {
   }, []);
 
   const handleSubmit = async () => {
+    // Basic validation: ID, Type, Reason are mandatory. 
+    // Guardian check validation depends on whether it's enabled in config.
     if (!studentId || !selectedType || !selectedReason) return;
     
+    // If guardianEntry exists in config, we might want to enforce checking it, 
+    // or just let it be optional. Based on the screenshot, it looks like a confirmation 
+    // that implies it should be checked. Let's assume if it exists, user must check it
+    // OR simply send whatever state it is in. 
+    // Usually "Confirmation" checkboxes are mandatory.
+    if (config.guardianEntry && !guardianChecked) {
+        alert("보호자 확인 항목을 체크해주세요.");
+        return;
+    }
+
     // Save student ID for next time
     localStorage.setItem('student_id', studentId);
 
@@ -32,7 +45,8 @@ const MainForm: React.FC<MainFormProps> = ({ config, onOpenSettings }) => {
     const data: SubmissionData = {
         studentId,
         type: selectedType,
-        reason: selectedReason
+        reason: selectedReason,
+        guardianChecked
     };
 
     const result = await submitToGoogleForm(config, data);
@@ -48,6 +62,7 @@ const MainForm: React.FC<MainFormProps> = ({ config, onOpenSettings }) => {
     setIsSuccess(false);
     setSelectedType(null);
     setSelectedReason(null);
+    setGuardianChecked(false);
     // Keep student ID as it's likely the same user
   };
 
@@ -73,6 +88,10 @@ const MainForm: React.FC<MainFormProps> = ({ config, onOpenSettings }) => {
       </div>
     );
   }
+
+  // Determine if submit should be disabled
+  const isFormValid = studentId && selectedType && selectedReason && 
+                      (!config.guardianEntry || guardianChecked);
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6 max-w-md w-full mx-auto relative">
@@ -151,12 +170,32 @@ const MainForm: React.FC<MainFormProps> = ({ config, onOpenSettings }) => {
           </div>
         </div>
 
+        {/* Guardian Check (Conditional) */}
+        {config.guardianEntry && (
+          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <div className="flex items-center h-6">
+                <input
+                  type="checkbox"
+                  checked={guardianChecked}
+                  onChange={(e) => setGuardianChecked(e.target.checked)}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+              </div>
+              <div className="text-sm">
+                <span className="font-bold text-gray-800 block mb-1">보호자 확인 문자 발송 여부</span>
+                <span className="text-gray-600">보호자 확인했습니다.</span>
+              </div>
+            </label>
+          </div>
+        )}
+
         {/* Submit Button */}
         <button
           onClick={handleSubmit}
-          disabled={!studentId || !selectedType || !selectedReason || isSubmitting}
+          disabled={!isFormValid || isSubmitting}
           className={`w-full py-4 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg ${
-            !studentId || !selectedType || !selectedReason || isSubmitting
+            !isFormValid || isSubmitting
               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 transform hover:-translate-y-1'
           }`}

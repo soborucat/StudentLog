@@ -17,6 +17,7 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ initialConfig, onSave, onCa
   const [studentIdEntry, setStudentIdEntry] = useState(initialConfig?.studentIdEntry || '');
   const [typeEntry, setTypeEntry] = useState(initialConfig?.typeEntry || '');
   const [reasonEntry, setReasonEntry] = useState(initialConfig?.reasonEntry || '');
+  const [guardianEntry, setGuardianEntry] = useState(initialConfig?.guardianEntry || '');
   
   const [step, setStep] = useState<1 | 2>(1);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,6 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ initialConfig, onSave, onCa
     }
 
     try {
-      // Common mistake check: User copied the browser address bar instead of clicking "Get Link" button
       if (urlToProcess.includes('/prefill') && !urlToProcess.includes('entry.')) {
         setError("입력하신 링크는 '작성 화면'의 주소입니다. 화면 하단의 [링크 복사] 버튼을 눌러서 클립보드에 복사된 긴 링크를 붙여넣어주세요.");
         return;
@@ -53,11 +53,11 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ initialConfig, onSave, onCa
       setFormUrl(baseUrl);
       setDetectedEntries(keys);
       
-      // Auto-assign if we have exactly 3 keys, just to be helpful, 
-      // but let user confirm.
+      // Auto-assign based on order (assuming standard order: ID -> Type -> Reason -> Guardian)
       if (keys.length >= 1) setStudentIdEntry(keys[0]);
       if (keys.length >= 2) setTypeEntry(keys[1]);
       if (keys.length >= 3) setReasonEntry(keys[2]);
+      if (keys.length >= 4) setGuardianEntry(keys[3]);
 
       setStep(2);
     } catch (e) {
@@ -67,14 +67,18 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ initialConfig, onSave, onCa
 
   const handleSave = () => {
     if (!formUrl || !studentIdEntry || !typeEntry || !reasonEntry) {
-      setError("모든 항목을 선택해야 합니다.");
+      setError("학번, 출결 신청, 사유는 필수 선택 항목입니다.");
       return;
     }
+    // guardianEntry is optional in UI logic but if detected, user should probably map it.
+    // We allow saving even if guardianEntry is empty, in case the user reverted to a 3-question form.
+    
     onSave({
       formUrl,
       studentIdEntry,
       typeEntry,
-      reasonEntry
+      reasonEntry,
+      guardianEntry: guardianEntry || undefined
     });
   };
 
@@ -94,7 +98,7 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ initialConfig, onSave, onCa
             <ol className="list-decimal list-inside space-y-2 ml-1">
               <li>구글 설문지 편집 화면 우측 상단 <strong>⋮ (더보기)</strong> 클릭</li>
               <li><strong>'미리 채워진 링크 가져오기'</strong> 메뉴 선택</li>
-              <li>각 질문에 임의의 값(예: 1234, 결석, 질병)을 대충 입력</li>
+              <li>각 질문에 임의의 값을 대충 입력 (보호자 확인도 체크)</li>
               <li className="font-bold text-blue-700 bg-blue-100 p-1 rounded">
                  화면 맨 아래의 [링크 복사] 버튼 클릭
               </li>
@@ -204,6 +208,23 @@ const ConfigScreen: React.FC<ConfigScreenProps> = ({ initialConfig, onSave, onCa
                   <option key={key} value={key}>{key}</option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-gray-700 mb-1">4. 보호자 확인 (체크박스)</label>
+              <div className="flex gap-2">
+                <select 
+                  value={guardianEntry} 
+                  onChange={(e) => setGuardianEntry(e.target.value)}
+                  className="w-full border p-2 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">(사용 안 함)</option>
+                  {detectedEntries.map(key => (
+                    <option key={key} value={key}>{key}</option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">* 설문지에 항목이 없다면 '(사용 안 함)'으로 두세요.</p>
             </div>
           </div>
 
